@@ -6,7 +6,6 @@ const showCompanyData = companies => {
 };
 
 const drawCompanyChart = companies => {
-  console.log(companies);
   const chartSize = { width: 800, height: 600 };
   const margin = { left: 100, right: 10, top: 10, bottom: 150 };
   const maxHeight = _.maxBy(companies, company => company.CMP).CMP;
@@ -57,6 +56,8 @@ const drawCompanyChart = companies => {
 
   const xAxis = d3.axisBottom(x);
 
+  const c = d3.scaleOrdinal(d3.schemeCategory10);
+
   g.append("g")
     .attr("class", "y-axis")
     .call(yAxis);
@@ -80,7 +81,7 @@ const drawCompanyChart = companies => {
     .attr("x", c => x(c.Name))
     .attr("width", x.bandwidth)
     .attr("height", c => y(0) - y(c.CMP))
-    .attr("fill", "grey");
+    .attr("fill", comp => c(comp.Name) );
 };
 
 const parseCompanyData = function({ Name, ...rest }) {
