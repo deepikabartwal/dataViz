@@ -47,7 +47,7 @@ const drawChart = buildings => {
   const y = d3
     .scaleLinear()
     .domain([0, 828])
-    .range([0, height]);
+    .range([height, 0]);
 
   // x axis scale band
   const x = d3
@@ -88,10 +88,10 @@ const drawChart = buildings => {
   rects
     .enter()
     .append("rect")
-    .attr("y", 0)
+    .attr("y", b => y(b.height))
     .attr("x", b => x(b.name))
     .attr("width", x.bandwidth)
-    .attr("height", b => y(b.height))
+    .attr("height", b => y(0) - y(b.height))
     .attr("fill", "grey");
 };
 
