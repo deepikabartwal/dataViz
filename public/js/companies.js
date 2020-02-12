@@ -1,105 +1,96 @@
-const showData = buildings => {
-  const toLine = b => `<strong>${b.name}</strong> <i>${b.height}</i>`;
-  document.querySelector("#chart-data").innerHTML = buildings
+const showCompanyData = companies => {
+  const toLine = c => `<strong>${c.Name}</strong> <i>${c.CMP}</i>`;
+  document.querySelector("#companies-data").innerHTML = companies
     .map(toLine)
     .join("<hr/>");
 };
 
-const drawChart = buildings => {
-  //height width & margins for svg and chart size and position
-  const chartSize = { width: 600, height: 400 };
+const drawCompanyChart = companies => {
+  console.log(companies);
+  const chartSize = { width: 800, height: 600 };
   const margin = { left: 100, right: 10, top: 10, bottom: 150 };
+  const maxHeight = _.maxBy(companies, company => company.CMP).CMP;
 
-  //height and width for chart
   const [width, height] = [
     chartSize.width - margin.left - margin.right,
     chartSize.height - margin.top - margin.bottom
   ];
 
-  //setting up svg
   const svg = d3
-    .select("#chart-area")
+    .select("#market-chart-area")
     .append("svg")
     .attr("width", chartSize.width)
     .attr("height", chartSize.height);
 
-  //grouping the svg elements
   const g = svg
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  //putting x-axis label
   g.append("text")
     .attr("class", "x-axis-label")
     .attr("x", width / 2)
     .attr("y", height + 140)
-    .text("Tall Buildings");
+    .text("Companies");
 
-  //putting y-xis label
   g.append("text")
     .attr("class", "y-axis-label")
     .attr("transform", "rotate(-90)")
     .attr("x", -height / 2)
     .attr("y", -60)
-    .text("Height (metres)");
+    .text("CMP");
 
-  //y axis linear scale
   const y = d3
     .scaleLinear()
-    .domain([0, 828])
+    .domain([0, maxHeight])
     .range([height, 0]);
 
-  // x axis scale band
   const x = d3
     .scaleBand()
-    .domain(_.map(buildings, "name"))
+    .domain(_.map(companies, "Name"))
     .range([0, width])
     .padding(0.3);
 
-  // y axis element creation
   const yAxis = d3
     .axisLeft(y)
-    .tickFormat(d => `${d}m`)
-    .ticks(3);
+    .tickFormat(d => `${d} ₹`)
+    .ticks(10);
 
-  //x axis element creation
   const xAxis = d3.axisBottom(x);
 
-  //add x-axis to the svg
   g.append("g")
     .attr("class", "y-axis")
     .call(yAxis);
 
-  //add x-axis to the svg
   g.append("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${height})`)
     .call(xAxis);
 
-  //rotating x-axis text
   g.selectAll(".x-axis text")
     .attr("transform", "rotate(-40)")
     .attr("x", -5)
     .attr("y", 10);
 
-  const rects = g.selectAll("rect").data(buildings);
+  const rects = g.selectAll("rect").data(companies);
 
-  //add dimensions to all the rects or bar chart
   rects
     .enter()
     .append("rect")
-    .attr("y", b => y(b.height))
-    .attr("x", b => x(b.name))
+    .attr("y", c => y(c.CMP))
+    .attr("x", c => x(c.Name))
     .attr("width", x.bandwidth)
-    .attr("height", b => y(0) - y(b.height))
+    .attr("height", c => y(0) - y(c.CMP))
     .attr("fill", "grey");
 };
 
-const drawBuildings = buildings => {
-  drawChart(buildings);
-  // showData(buildings);
+const parseCompanyData = function({ Name, ...rest }) {
+  const fields = _.keys(rest);
+  _.forEach(fields, field => (rest[field] = +rest[field]));
+  return { Name, ...rest };
 };
+
 const main = () => {
-  d3.json("data/buildings.json").then(drawBuildings);
+  d3.csv("data/companies.csv", parseCompanyData).then(drawCompanyChart);
 };
+
 window.onload = main;
