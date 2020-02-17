@@ -1,19 +1,17 @@
 const chartSize = { width: 800, height: 600 };
 const margin = { left: 100, right: 10, top: 10, bottom: 150 };
+
 const width = chartSize.width - margin.left - margin.right;
 const height = chartSize.height - margin.top - margin.bottom;
 
-const showCompanyData = companies => {
-  const toLine = c => `<strong>${c.Name}</strong> <i>${c.CMP}</i>`;
-  document.querySelector("#companies-data").innerHTML = companies
-    .map(toLine)
-    .join("<hr/>");
-};
+const c = d3.scaleOrdinal(d3.schemeCategory10);
 
 const percentageFormat = d => `${d}%`;
 const kCroreFormat = d => `${d / 1000}k Cr ₹`;
+const inrFormat = d => `${d} ₹`;
 
 const formats = {
+  CMP: inrFormat,
   MarketCap: kCroreFormat,
   DivYld: percentageFormat,
   ROCE: percentageFormat,
@@ -21,9 +19,7 @@ const formats = {
   QSales: kCroreFormat
 };
 
-const drawCompanyChart = companies => {
-  const maxHeight = _.maxBy(companies, company => company.CMP).CMP;
-
+const initChart = () => {
   const svg = d3
     .select("#market-chart-area svg")
     .attr("width", chartSize.width)
@@ -31,6 +27,7 @@ const drawCompanyChart = companies => {
 
   const g = svg
     .append("g")
+    .attr("class", "companies")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
   g.append("text")
@@ -46,9 +43,26 @@ const drawCompanyChart = companies => {
     .attr("y", -60)
     .text("CMP");
 
+  g.append("g").attr("class", "y-axis");
+
+  g.append("g")
+    .attr("class", "x-axis")
+    .attr("transform", `translate(0,${height})`);
+
+  g.selectAll(".x-axis text")
+    .attr("transform", "rotate(-40)")
+    .attr("x", -5)
+    .attr("y", 10);
+};
+
+const updateCompaniesChart = function(companies, fieldName) {
+  const format = formats[fieldName];
+  const maxYAxisValue = _.get(_.maxBy(companies, fieldName), fieldName, 0);
+
+  const svg = d3.select("#market-chart-area svg");
   const y = d3
     .scaleLinear()
-    .domain([0, maxHeight])
+    .domain([0, maxYAxisValue])
     .range([height, 0]);
 
   const x = d3
@@ -57,78 +71,42 @@ const drawCompanyChart = companies => {
     .range([0, width])
     .padding(0.3);
 
-  const yAxis = d3
-    .axisLeft(y)
-    .tickFormat(d => `${d} ₹`)
-    .ticks(10);
-
-  const xAxis = d3.axisBottom(x);
-
-  const c = d3.scaleOrdinal(d3.schemeCategory10);
-
-  g.append("g")
-    .attr("class", "y-axis")
-    .call(yAxis);
-
-  g.append("g")
-    .attr("class", "x-axis")
-    .attr("transform", `translate(0,${height})`)
-    .call(xAxis);
-
-  g.selectAll(".x-axis text")
-    .attr("transform", "rotate(-40)")
-    .attr("x", -5)
-    .attr("y", 10);
-
-  const rects = g.selectAll("rect").data(companies);
-
-  rects
-    .enter()
-    .append("rect")
-    .attr("y", c => y(c.CMP))
-    .attr("x", c => x(c.Name))
-    .attr("width", x.bandwidth)
-    .attr("height", c => y(0) - y(c.CMP))
-    .attr("fill", comp => c(comp.Name));
-};
-
-const updateCompaniesChart = function(companies, fieldName) {
-  const svg = d3.select("#market-chart-area svg");
   svg.select(".y-axis-label").text(fieldName);
 
-  const y = d3
-    .scaleLinear()
-    .domain([0, _.get(_.maxBy(companies, fieldName), fieldName, 0)])
-    .range([height, 0]);
-
   const yAxis = d3
     .axisLeft(y)
-    .tickFormat(formats[fieldName])
+    .tickFormat(format)
     .ticks(10);
 
   svg.select(".y-axis").call(yAxis);
+
+  const xAxis = d3.axisBottom(x);
+
+  svg.select(".x-axis").call(xAxis);
 
   const t = d3
     .transition()
     .duration(1000)
     .ease(d3.easeLinear);
 
-  svg
-    .selectAll("rect")
-    .data(companies, c => c.Name)
-    .exit()
-    .remove()
-    .transition(t);
+  const g = svg.select(".companies");
 
-  const x = d3
-    .scaleBand()
-    .domain(_.map(companies, "Name"))
-    .range([0, width])
-    .padding(0.3);
+  const rects = g.selectAll("rect").data(companies, c => c.Name);
 
-  const xAxis = d3.axisBottom(x);
+  rects.exit().remove();
 
-  svg.select(".x-axis").call(xAxis);
+  rects
+    .enter()
+    .append("rect")
+    .attr("y", c => y(0))
+    .attr("x", c => x(c.Name))
+    .merge(rects)
+    .transition(t)
+    .attr("y", b => y(b[fieldName]))
+    .attr("x", b => x(b.Name))
+    .attr("height", b => y(0) - y(b[fieldName]))
+    .attr("fill", b => c(b.Name))
+    .attr("width", x.bandwidth);
 
   svg
     .selectAll("rect")
@@ -146,18 +124,20 @@ const parseCompanyData = function({ Name, ...rest }) {
   return { Name, ...rest };
 };
 
+const getNextField = (function() {
+  const fields = "CMP,PE,MarketCap,DivYld,QNetProfit,QSales,ROCE".split(",");
+  let step = 0;
+  return function() {
+    return fields[step++ % fields.length];
+  };
+})();
+
 const drawCompanies = companies => {
-  drawCompanyChart(companies);
+  initChart();
 
-  const { Name, ...rest } = companies[1];
+  updateCompaniesChart(companies, getNextField());
 
-  const fields = _.keys(rest);
-
-  let step = 1;
-  setInterval(
-    () => updateCompaniesChart(companies, fields[step++ % fields.length]),
-    2000
-  );
+  setInterval(() => updateCompaniesChart(companies, getNextField()), 2000);
 
   frequentlyMoveCompanies(companies, []);
 };
