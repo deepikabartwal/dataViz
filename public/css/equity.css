@@ -1,0 +1,22 @@
+html {
+    margin-top: 10px;
+}
+
+svg {
+    border: 1px solid green;
+}
+
+.x-axis-label {
+    font-size: 20px;
+    text-anchor: middle;
+}
+
+.y-axis-label {
+    font-size: 20px;
+    text-anchor: middle;
+}
+
+.x-axis {
+    text-anchor: end;
+    font-weight: bold;
+}
