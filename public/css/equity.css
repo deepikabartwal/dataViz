@@ -1,22 +1,49 @@
 html {
-    margin-top: 10px;
+  margin-top: 2px;
 }
 
 svg {
-    border: 1px solid green;
+  border: 1px solid black;
+}
+
+.container {
+  margin-left: 10px;
 }
 
 .x-axis-label {
-    font-size: 20px;
-    text-anchor: middle;
+  font-size: 20px;
+  text-anchor: middle;
 }
 
 .y-axis-label {
-    font-size: 20px;
-    text-anchor: middle;
+  font-size: 20px;
+  text-anchor: middle;
 }
 
 .x-axis {
-    text-anchor: end;
-    font-weight: bold;
+  text-anchor: middle;
+  font-weight: bold;
+}
+
+
+.close {
+  fill: none;
+  stroke: black;
+  stroke-width: 2px;
+}
+
+.sma {
+  fill: none;
+  stroke: blue;
+  stroke-width: 2px;
+}
+
+#slider-container {
+  position: relative;
+  height: 30px;
+  background-color: #eeeef5;
+}
+
+#range-label {
+  text-align: center; 
 }
