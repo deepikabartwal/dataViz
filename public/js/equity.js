@@ -1,14 +1,8 @@
-const chartSize = { width: 1400, height: 750 };
+const chartSize = { width: 1400, height: 700 };
 const margin = { left: 100, right: 10, top: 10, bottom: 150 };
 
 const width = chartSize.width - margin.left - margin.right;
 const height = chartSize.height - margin.top - margin.bottom;
-
-const showData = function(quotes) {
-  console.log(quotes.length);
-  console.log(_.first(quotes));
-  console.log(_.last(quotes));
-};
 
 const initChart = function() {
   const svg = d3
@@ -50,18 +44,16 @@ const initChart = function() {
     .attr("y", 10);
 };
 
-const updateCompaniesChart = function(quotes) {
-  const fq = _.first(quotes);
-  const lq = _.last(quotes);
-  const firstDate = fq.time;
-  const lastDate = lq.time;
+const updateChart = function(quotes) {
+  const { firstDate, lastDate } = getFirstAndLastDate(quotes);
   const maxYAxisValue = _.get(_.maxBy(quotes, "Close"), "Close", 0);
-  const minYaxisValue = _.get(_.minBy(quotes, "Close"), "Close", 0);
-
+  const minCloseValue = _.get(_.minBy(quotes, "Close"), "Close", 0);
+  const minSMAValue = _.get(_.minBy(quotes, "sma"), "sma", 0);
+  const minYAxisValue = Math.min(minCloseValue, minSMAValue);
   const svg = d3.select("#chart-area svg");
   const y = d3
     .scaleLinear()
-    .domain([minYaxisValue, maxYAxisValue])
+    .domain([minYAxisValue, maxYAxisValue])
     .range([height, 0]);
 
   const x = d3
@@ -94,15 +86,23 @@ const updateCompaniesChart = function(quotes) {
   prices
     .append("path")
     .attr("class", "sma")
-    .attr("d", line("sma")(quotes.slice(99)));
-
-  createslider(firstDate, lastDate);
+    .attr("d", line("sma")(quotes.filter(quote => quote.sma)));
 };
 
 const formatDate = function(date) {
   return _.first(new this.Date(date).toJSON().split("T"));
 };
-const createslider = function(firstDate, lastDate) {
+
+function isWithinDateRange(begin, date, end) {
+  return begin < date.getTime() && date.getTime() <= end;
+}
+
+const getQuotesInSelectedRange = function(begin, end, quotes) {
+  return quotes.filter(quote => isWithinDateRange(begin, quote.time, end));
+};
+
+const showRangedData = function(quotes) {
+  const { firstDate, lastDate } = getFirstAndLastDate(quotes);
   const startingYear = firstDate.getTime();
   const endingYear = lastDate.getTime();
   const slider = createD3RangeSlider(
@@ -110,38 +110,49 @@ const createslider = function(firstDate, lastDate) {
     endingYear,
     "#slider-container"
   );
-
   slider.onChange(newRange => {
     d3.select("#range-label").text(
-      formatDate(newRange.begin) + " - " + formatDate(newRange.end)
+      formatDate(newRange.begin) + " to " + formatDate(newRange.end)
     );
+    d3.selectAll("path").remove();
+    updateChart(getQuotesInSelectedRange(newRange.begin, newRange.end, quotes));
   });
 
   slider.range(startingYear, endingYear);
 };
+
 const parseQuotes = function({ Date, ...rest }) {
   const fields = _.keys(rest);
   _.forEach(fields, field => (rest[field] = +rest[field]));
   return { Date, time: new this.Date(Date), ...rest };
 };
 
-function getHundredDayAverageFrom(quotes, i) {
-  const hunderdDaysQuotes = quotes.slice(i - 100, i);
+function getHundredDayAverageFrom(quotes, i, spanForAverage) {
+  const hunderdDaysQuotes = quotes.slice(i - spanForAverage, i);
   const sumOfHundredCloses = hunderdDaysQuotes.reduce((x, y) => x + y.Close, 0);
-  const average = sumOfHundredCloses / 100;
+  const average = sumOfHundredCloses / spanForAverage;
   return _.round(average);
 }
 
-const analyzeData = function(quotes) {
-  for (let i = 100; i < quotes.length; i++) {
+const analyzeData = function(quotes, spanForAverage) {
+  for (let i = spanForAverage; i < quotes.length; i++) {
     quotes[i - 1].sma = getHundredDayAverageFrom(quotes, i);
   }
 };
 
+function getFirstAndLastDate(quotes) {
+  const fq = _.first(quotes);
+  const lq = _.last(quotes);
+  const firstDate = fq.time;
+  const lastDate = lq.time;
+  return { firstDate, lastDate };
+}
+
 const showChart = function(quotes) {
-  analyzeData(quotes);
+  analyzeData(quotes, 100);
   initChart();
-  updateCompaniesChart(quotes);
+  showRangedData(quotes);
+  updateChart(quotes);
 };
 
 const main = function() {
